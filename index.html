@@ -53,9 +53,17 @@
             } catch (error) { console.error("TTS Error:", error); }
         }
 
-        // Module 2: LLM Diagnostics with Telemetry Feedback
+        // Module 2: LLM Diagnostics with Environment Awareness
         async function runDiagnostics() {
             const statusEl = document.getElementById('diagnostic-output');
+            
+            // Check if we are running on the live GitHub Pages domain
+            if (window.location.hostname.includes("github.io")) {
+                statusEl.innerHTML = '<span class="text-cyber-cyan">&gt; STATUS: Cloud-to-Local Bridge Active (Public Node Telemetry)</span>';
+                return;
+            }
+
+            // Otherwise, run local handshake
             statusEl.innerHTML = '<span class="text-yellow-400">&gt; Pinging local LLM endpoint (Port 11434)...</span>';
             
             try {
@@ -117,7 +125,6 @@
                     <p><span class="text-cyber-cyan">&gt;</span> Environment: Cloud-to-Local Bridge</p>
                     <p><span class="text-cyber-cyan">&gt;</span> Encryption: Active / Sovereign Grade</p>
                 </div>
-                <!-- Telemetry Readout Box -->
                 <div class="pt-4 border-t border-slate-800">
                     <div class="text-[10px] text-slate-400 mb-1">LIVE TELEMETRY LOG:</div>
                     <div id="diagnostic-output" class="p-2 bg-cyber-950 rounded border border-slate-800 text-slate-300">

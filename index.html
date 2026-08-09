@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CC.Metaverse | Cyberpunk Beta Test Node</title>
+    <title>CC.Metaverse | Cyberpunk Beta Test Grid</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -34,128 +34,178 @@
             background-size: 24px 24px;
         }
         .glow-cyan { box-shadow: 0 0 20px rgba(6, 182, 212, 0.2); }
-        .glow-magenta { box-shadow: 0 0 20px rgba(236, 72, 153, 0.2); }
+        .box-shadow { box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(6, 182, 212, 0.1); }
+        
+        /* Custom scrollbar for diagnostic terminal */
+        #diagnostic-output::-webkit-scrollbar { width: 6px; }
+        #diagnostic-output::-webkit-scrollbar-track { background: rgba(3, 7, 18, 0.5); }
+        #diagnostic-output::-webkit-scrollbar-thumb { background: #06b6d4; border-radius: 3px; }
     </style>
 </head>
 <body class="bg-cyber-950 text-slate-100 min-h-screen cyber-grid flex flex-col justify-between selection:bg-cyber-cyan selection:text-cyber-950">
 
-    <script>
-        // Module 1: Audio
-        async function playKokoroSpeech(textPrompt) {
-            try {
-                const response = await fetch("http://localhost:8880/v1/audio/speech", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ model: "kokoro", input: textPrompt, voice: "af_bella", response_format: "mp3" })
-                });
-                const audio = new Audio(URL.createObjectURL(await response.blob()));
-                audio.play();
-            } catch (error) { console.error("TTS Error:", error); }
-        }
-
-        // Module 2: LLM Diagnostics with Environment Awareness
-        async function runDiagnostics() {
-            const statusEl = document.getElementById('diagnostic-output');
-            
-            if (window.location.hostname.includes("github.io")) {
-                statusEl.innerHTML = '<span class="text-cyber-cyan">&gt; STATUS: Cloud-to-Local Bridge Active (Public Node Telemetry)</span>';
-                return;
-            }
-
-            statusEl.innerHTML = '<span class="text-yellow-400">&gt; Pinging local LLM endpoint (Port 11434)...</span>';
-            
-            try {
-                const response = await fetch("http://localhost:11434/api/tags", {
-                    method: "GET",
-                    mode: "cors"
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const models = data.models ? data.models.length : 0;
-                    statusEl.innerHTML = `<span class="text-emerald-400">&gt; STATUS: Ollama Online. Models Indexed: ${models}</span>`;
-                } else {
-                    statusEl.innerHTML = `<span class="text-red-400">&gt; STATUS: Server reachable but returned error ${response.status}</span>`;
-                }
-            } catch (error) {
-                statusEl.innerHTML = `<span class="text-red-400">&gt; STATUS: Connection Refused. Ensure Ollama is running locally.</span>`;
-            }
-        }
-    </script>
-
-    <header class="w-full border-b border-cyber-cyan/20 bg-cyber-900/80 backdrop-blur px-6 py-3 flex justify-between items-center text-xs font-mono">
-        <div class="flex items-center space-x-3">
-            <span class="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse"></span>
-            <span class="text-cyber-cyan tracking-wider">NODE // READMYSTUFF.COM PREP</span>
-        </div>
-        <div class="text-slate-400 hidden sm:block">SECURITY: ENCRYPTED OFFLINE SYNC // PROTOCOL: CYBERPUNK V2.0</div>
-    </header>
-
-    <main class="max-w-6xl mx-auto px-6 py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start flex-grow">
-        <div class="lg:col-span-7 space-y-6">
-            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 text-cyber-cyan text-xs font-mono">
-                <span>[ STATUS: STAGING ACTIVE ]</span>
+    <div>
+        <header class="w-full border-b border-cyber-cyan/20 bg-cyber-900/80 backdrop-blur px-6 py-3 flex justify-between items-center text-xs font-mono">
+            <div class="flex items-center space-x-3">
+                <span class="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse"></span>
+                <span class="text-cyber-cyan tracking-wider">NODE // READMYSTUFF.COM PREP</span>
             </div>
-            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none">
-                Cyberpunk <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan to-cyber-magenta">Beta Test</span> Grid.
+            <div class="text-slate-400">
+                SECURITY: ENCRYPTED OFFLINE SYNC // PROTOCOL: CYBERPUNK V2.0
+            </div>
+        </header>
+
+        <div class="w-full bg-cyber-900/95 border-b border-cyber-cyan/30 px-6 py-2.5 flex items-center space-x-3 font-mono text-xs">
+            <div class="flex space-x-2 text-slate-400">
+                <button onclick="history.back()" class="hover:text-cyber-cyan transition px-2 py-1 bg-cyber-800 rounded border border-slate-700">&larr;</button>
+                <button onclick="history.forward()" class="hover:text-cyber-cyan transition px-2 py-1 bg-cyber-800 rounded border border-slate-700">&rarr;</button>
+                <button onclick="location.reload()" class="hover:text-cyber-cyan transition px-2 py-1 bg-cyber-800 rounded border border-slate-700">&#x21bb;</button>
+            </div>
+            <div class="flex-grow flex items-center bg-cyber-950 border border-cyber-cyan/40 rounded px-3 py-1.5 text-cyber-cyan space-x-2">
+                <span class="text-slate-500">SECURE://</span>
+                <input type="text" id="address-bar" value="" readonly class="bg-transparent w-full text-slate-200 outline-none font-mono text-xs cursor-default">
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-6xl mx-auto px-6 py-12 flex flex-col gap-8 flex-grow w-full relative">
+        
+        <!-- Diagnostic Terminal Overlay -->
+        <div id="diagnostic-modal" class="absolute inset-0 bg-cyber-950/90 backdrop-blur-md hidden flex-col items-center justify-center z-50 border border-cyber-cyan/20 rounded-xl">
+            <div class="bg-black border border-cyber-cyan/50 rounded-lg p-6 w-full max-w-2xl shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+                <div class="flex justify-between items-center border-b border-cyber-cyan/30 pb-3 mb-4">
+                    <span class="text-cyber-cyan font-mono font-bold tracking-wider">[ SYSTEM DIAGNOSTICS ACTIVE ]</span>
+                    <button onclick="closeDiagnostics()" class="text-slate-500 hover:text-cyber-magenta font-mono text-sm transition">[ TERMINATE ]</button>
+                </div>
+                <div id="diagnostic-output" class="font-mono text-sm space-y-2 h-48 overflow-y-auto text-cyber-neon">
+                    <!-- Text gets injected here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="inline-block px-3 py-1 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 text-cyber-cyan font-mono text-xs">
+                [ STATUS: STAGING ACTIVE ]
+            </div>
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight">
+                Cyberpunk <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-indigo-400 to-cyber-magenta">Beta Test</span> Grid.
             </h1>
-            <p class="text-lg text-slate-300 font-light leading-relaxed">
+            <p class="text-slate-400 max-w-2xl text-base">
                 Welcome to the experimental staging ground. Direct peer-to-peer data transfers and raw algorithmic bypass protocols in testing.
             </p>
-            <div class="pt-4 flex flex-wrap gap-4">
-                <button onclick="runDiagnostics()" class="px-6 py-3 rounded-lg bg-cyber-cyan text-cyber-950 font-bold hover:bg-cyan-400 transition shadow-lg glow-cyan">
-                    Diagnostics
-                </button>
-                <button onclick="playKokoroSpeech('System initialized. Audio output testing.')" class="px-6 py-3 rounded-lg bg-cyber-800 border border-slate-700 hover:border-cyber-magenta transition font-mono text-sm text-cyber-magenta">
-                    Test Audio Feed &rarr;
-                </button>
-            </div>
-
-            <!-- Module 3: Writing Pipeline Panel -->
-            <div class="bg-cyber-900/90 border border-cyber-cyan/30 rounded-xl p-6 glow-cyan font-mono text-xs space-y-3 mt-8">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <span class="text-cyber-cyan font-bold">WRITING PIPELINE INDEX (233 FILES)</span>
-                    <span class="text-emerald-400">SYNCED</span>
-                </div>
-                <p class="text-slate-300">Active markdown and manuscript drafts indexed locally via GemOS pipeline scanner.</p>
-                <div class="p-3 bg-cyber-950 rounded border border-slate-800 text-slate-300 space-y-1">
-                    <p><span class="text-cyber-cyan">&gt;</span> Target: Science-Fiction Book Series & Blog Posts</p>
-                    <p><span class="text-cyber-cyan">&gt;</span> Status: Ready for Dynamic Markdown Rendering</p>
-                </div>
-            </div>
         </div>
 
-        <div class="lg:col-span-5 space-y-4">
-            <div class="bg-cyber-900/90 border border-cyber-magenta/30 rounded-xl p-6 glow-magenta font-mono text-xs space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <span class="text-cyber-magenta font-bold">SYSTEM CONFIGURATION</span>
-                    <span class="text-emerald-400 flex items-center gap-1">● ONLINE</span>
-                </div>
-                <div class="space-y-2 text-slate-300">
-                    <p><span class="text-cyber-cyan">&gt;</span> Target Domain: readmystuff.com</p>
-                    <p><span class="text-cyber-cyan">&gt;</span> Pipeline: Canva &rarr; VS Code &rarr; Pages</p>
-                    <p><span class="text-cyber-cyan">&gt;</span> Environment: Cloud-to-Local Bridge</p>
-                    <p><span class="text-cyber-cyan">&gt;</span> Encryption: Active / Sovereign Grade</p>
-                </div>
-                <div class="pt-4 border-t border-slate-800">
-                    <div class="text-[10px] text-slate-400 mb-1">LIVE TELEMETRY LOG:</div>
-                    <div id="diagnostic-output" class="p-2 bg-cyber-950 rounded border border-slate-800 text-slate-300">
-                        &gt; System idle. Click 'Diagnostics' to run handshake.
-                    </div>
-                </div>
-                <div class="pt-2 text-slate-500 text-[10px]">
-                    BUILD ID: 2026.CYBER.BETA.03
-                </div>
+        <div class="flex flex-wrap gap-4 items-center">
+            <a href="/flipbook/index.html" class="px-6 py-3 rounded-lg bg-cyber-cyan text-cyber-950 font-bold hover:bg-cyan-400 transition glow-cyan font-mono text-sm">
+                Launch Flipbook Module &rarr;
+            </a>
+            <button onclick="runDiagnostics()" class="px-6 py-3 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/40 text-cyber-cyan hover:bg-cyber-cyan/20 transition font-mono text-sm">
+                Diagnostics
+            </button>
+            <button onclick="testAudioFeed()" id="audio-btn" class="px-6 py-3 rounded-lg bg-cyber-900 border border-cyber-magenta/40 hover:border-cyber-magenta transition text-cyber-magenta font-mono text-sm">
+                Test Audio Feed &rarr;
+            </button>
+        </div>
+
+        <div class="w-full bg-cyber-900/90 border border-cyber-cyan/30 rounded-xl p-6 box-shadow space-y-4">
+            <div class="flex justify-between items-center font-mono text-xs border-b border-slate-800 pb-3">
+                <span class="text-cyber-cyan font-bold">WRITING PIPELINE INDEX (233 FILES)</span>
+                <span class="text-cyber-neon">SYNCED</span>
             </div>
-            <div class="p-2 bg-cyber-900/90 border border-cyber-cyan/30 rounded-xl glow-cyan">
-                <div class="text-[10px] font-mono text-cyber-cyan mb-2 px-1">ACTIVE CANVA DESIGN ASSET:</div>
-                <img src="assets/images/scifi-blog-banner.png" alt="Sci-Fi Blog Banner" class="w-full rounded-lg shadow-lg border border-slate-800">
+            <p class="text-slate-300 text-sm">
+                Active markdown and manuscript drafts indexed locally via GemOS pipeline scanner.
+            </p>
+            <div class="bg-cyber-950 border border-slate-800 rounded p-4 font-mono text-xs space-y-2 text-slate-400">
+                <p>&gt; Target: Science-Fiction Book Series & Blog Posts</p>
+                <p>&gt; Status: Ready for Dynamic Markdown Rendering</p>
             </div>
         </div>
     </main>
 
     <footer class="w-full border-t border-slate-800/80 bg-cyber-900/40 py-6 px-6 text-center text-xs font-mono text-slate-500">
-        <p>SECURE DECENTRALIZED NODE // PREPARING <span class="text-cyber-cyan">READMYSTUFF.COM</span> INFRASTRUCTURE</p>
+        <p>PAULSERGENT.US WORKHORSE NODE // HOME STAGING</p>
     </footer>
 
+    <script>
+        try {
+            document.getElementById('address-bar').value = window.location.href;
+        } catch (e) {
+            console.error(e);
+        }
+
+        // Diagnostic Terminal Logic
+        let diagTimeout;
+        function runDiagnostics() {
+            const modal = document.getElementById('diagnostic-modal');
+            const output = document.getElementById('diagnostic-output');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            output.innerHTML = ''; 
+
+            const lines = [
+                "> INITIATING ALGORITHMIC BYPASS PROTOCOLS...",
+                "> CHECKING LOCAL NODE LINKS............. [ OK ]",
+                "> VERIFYING PYTHON SOCKET SERVERS....... [ OK ]",
+                "> SCANNING PIPELINE INDEX............... [ 233 FILES ]",
+                "> PINGING SUB-FREQUENCY CHANNELS........ [ ESTABLISHED ]",
+                "> ALL SYSTEMS NOMINAL. READY FOR CYBERPUNK STAGING."
+            ];
+
+            let delay = 0;
+            lines.forEach((line, index) => {
+                diagTimeout = setTimeout(() => {
+                    output.innerHTML += `<p class="mb-1 opacity-0 animate-[fadeIn_0.3s_forwards]">${line}</p>`;
+                    output.scrollTop = output.scrollHeight;
+                }, delay);
+                delay += 800; // Type next line every 800ms
+            });
+        }
+
+        function closeDiagnostics() {
+            const modal = document.getElementById('diagnostic-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            clearTimeout(diagTimeout); // Stop typing if closed early
+        }
+
+        // Audio Feed Logic
+        function testAudioFeed() {
+            const btn = document.getElementById('audio-btn');
+            const originalText = "Test Audio Feed &rarr;";
+            
+            // Visual feedback on button
+            btn.innerHTML = "PLAYING FEED...";
+            btn.classList.add('bg-cyber-magenta/20', 'border-cyber-magenta');
+
+            // Play the t3_cpu.wav file you provided (Make sure it's in the C:\CREATION\test_site_2\ folder)
+            const audio = new Audio('t3_cpu.wav');
+            
+            audio.play().catch(e => {
+                console.log("Audio file not found, falling back to speech synthesis.");
+                // Fallback to synthetic voice if the .wav isn't in the folder yet
+                const msg = new SpeechSynthesisUtterance("Audio feed sub-frequency channel active. Synthesizer handshake successful.");
+                msg.rate = 1.0;
+                msg.pitch = 0.9;
+                
+                msg.onend = resetBtn;
+                window.speechSynthesis.speak(msg);
+            });
+
+            audio.onended = resetBtn;
+
+            function resetBtn() {
+                btn.innerHTML = originalText;
+                btn.classList.remove('bg-cyber-magenta/20', 'border-cyber-magenta');
+            }
+        }
+    </script>
+    
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </body>
 </html>

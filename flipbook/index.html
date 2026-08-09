@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GemOS | Neural Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 950: '#030712', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+                        rose: { 600: '#e11d48', 500: '#f43f5e', 400: '#fb7185' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f43f5e; }
+
+        /* Typography for AI Markdown */
+        .prose pre { background-color: #0f172a; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; border: 1px solid #1e293b; margin: 0.5rem 0; }
+        .prose code { font-family: 'JetBrains Mono', monospace; color: #fb7185; font-size: 0.85em; }
+        .prose p { margin-bottom: 0.75rem; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+        .prose h1, .prose h2, .prose h3 { color: #f8fafc; font-weight: 600; margin: 1rem 0 0.5rem 0; }
+        .prose strong { color: #f8fafc; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 h-screen flex overflow-hidden selection:bg-rose-500 selection:text-white">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
+        <div class="p-4 border-b border-slate-800 flex flex-col gap-3">
+            <button onclick="clearChat()" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors border border-slate-700 hover:border-rose-500">
+                <span class="font-bold text-lg">+</span>
+                <span class="text-sm font-semibold">New Session</span>
+            </button>
+            <button onclick="exportChat()" class="w-full flex items-center justify-center space-x-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white px-4 py-2 rounded-lg transition-colors border border-slate-800">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                <span class="text-xs font-mono">Export Chat (.txt)</span>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <div class="text-[10px] font-mono text-slate-500 px-2 py-2 uppercase tracking-wider">Navigation</div>
+            <a href="index.html" class="block text-left px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-rose-400 rounded-md transition font-mono">
+                &larr; Return to Hub
+            </a>
+            <a href="flipbook/index.html" class="block text-left px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-rose-400 rounded-md transition font-mono">
+                &rarr; Open Flipbook
+            </a>
+        </div>
+        <div class="p-4 border-t border-slate-800 flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold font-mono text-xs shadow-[0_0_10px_rgba(244,63,94,0.3)]">PS</div>
+            <div class="text-sm font-semibold">Paul Sergent</div>
+        </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="flex-1 flex flex-col relative bg-slate-950">
+        
+        <!-- Top Nav -->
+        <header class="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-950/90 backdrop-blur z-10">
+            <div class="flex items-center space-x-2">
+                <span id="status-indicator" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="font-mono text-xs text-slate-400" id="status-text">Connecting to Ollama...</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <label for="model-select" class="text-xs font-mono text-slate-400 hidden sm:block">Engine:</label>
+                <select id="model-select" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-1.5 outline-none cursor-pointer">
+                    <option value="">Scanning local models...</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Chat History Window -->
+        <div id="chat-window" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 pb-40">
+            <!-- Messages injected here -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-slate-950 via-slate-950 to-transparent pt-12 pb-6 px-4">
+            <div class="max-w-4xl mx-auto relative flex items-end space-x-2">
+                <!-- Attachment Button (Inactive UI for now) -->
+                <button title="Vision integration pending" class="p-3 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-500 cursor-not-allowed rounded-xl h-[56px] flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" /></svg>
+                </button>
+
+                <div class="relative flex-grow">
+                    <textarea id="prompt-input" rows="1" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm rounded-xl focus:ring-rose-500 focus:border-rose-500 block p-4 pr-14 outline-none resize-none shadow-xl" placeholder="Message local model... (Press Enter to send, Shift+Enter for new line)"></textarea>
+                    <button onclick="sendMessage()" id="send-btn" class="absolute right-2 bottom-2 p-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition-colors cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" /></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <span class="text-[10px] font-mono text-slate-500">Local inference via Ollama Engine // Data remains on this machine</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const OLLAMA_HOST = 'http://localhost:11434';
+        let conversationHistory = [];
+        let synth = window.speechSynthesis;
+        let voices = [];
+
+        function loadVoices() { voices = synth.getVoices(); }
+        if (speechSynthesis.onvoiceschanged !== undefined) { speechSynthesis.onvoiceschanged = loadVoices; }
+        setTimeout(loadVoices, 100);
+
+        function getFemaleVoice() {
+            return voices.find(v => v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Female')) || voices[0];
+        }
+
+        async function loadModels() {
+            const select = document.getElementById('model-select');
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.getElementById('status-indicator');
+
+            try {
+                const response = await fetch(`${OLLAMA_HOST}/api/tags`);
+                if (!response.ok) throw new Error('Ollama offline');
+                const data = await response.json();
+                select.innerHTML = '';
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.name;
+                        opt.textContent = `${m.name} (${(m.size / (1024*1024*1024)).toFixed(1)} GB)`;
+                        select.appendChild(opt);
+                    });
+                    statusText.textContent = 'Ollama Active';
+                    statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                } else {
+                    select.innerHTML = '<option value="">No models found</option>';
+                }
+            } catch (err) {
+                select.innerHTML = '<option value="">Ollama Offline</option>';
+                statusText.textContent = 'Ollama Unreachable';
+                statusDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+            }
+        }
+
+        const promptInput = document.getElementById('prompt-input');
+        promptInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            if (this.value === '') this.style.height = '56px';
+        });
+
+        promptInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function formatMarkdown(text) {
+            try {
+                if (typeof marked !== 'undefined') {
+                    return marked.parse(text);
+                }
+            } catch(e) { console.warn("Markdown parsing failed"); }
+            // Fallback if markdown library fails
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+
+        function appendUserBubble(text) {
+            const chatWin = document.getElementById('chat-window');
+            const html = `
+                <div class="flex items-start space-x-4 max-w-4xl mx-auto w-full">
+                    <div class="w-8 h-8 rounded flex-shrink-0 bg-slate-800 flex items-center justify-center border border-slate-700 mt-1">
+                        <span class="text-slate-300 text-xs font-mono font-bold">PS</span>
+                    </div>
+                    <div class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+                        <div class="text-sm text-slate-100 whitespace-pre-wrap leading-relaxed">${escapeHtml(text)}</div>
+                    </div>
+                </div>`;
+            chatWin.insertAdjacentHTML('beforeend', html);
+            chatWin.scrollTop = chatWin.scrollHeight;
+        }
+
+        function appendAIBubble(text, msgIndex) {
+            const chatWin = document.getElementById('chat-window');
+            const html = `
+                <div class="flex items-start space-x-4 max-w-4xl mx-auto w-full group">
+                    <div class="w-8 h-8 rounded flex-shrink-0 bg-rose-500 flex items-center justify-center border border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)] mt-1">
+                        <span class="text-white text-xs font-mono font-bold">AI</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="prose prose-invert text-sm text-slate-300 leading-relaxed max-w-none">${formatMarkdown(text)}</div>
+                        
+                        <div class="flex space-x-3 pt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="copyToClipboard(${msgIndex})" class="text-xs font-mono text-slate-500 hover:text-rose-400 flex items-center space-x-1 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                <span>Copy</span>
+                            </button>
+                            <button onclick="playTTS(${msgIndex})" class="text-xs font-mono text-slate-500 hover:text-rose-400 flex items-center space-x-1 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" /></svg>
+                                <span>Audio</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            chatWin.insertAdjacentHTML('beforeend', html);
+            chatWin.scrollTop = chatWin.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = promptInput.value.trim();
+            const selectedModel = document.getElementById('model-select').value;
+
+            if (!text) return;
+            if (!selectedModel) { alert("Please select an Engine from the dropdown."); return; }
+
+            // 1. Immediately render User Message
+            appendUserBubble(text);
+            conversationHistory.push({ role: 'user', content: text });
+            
+            promptInput.value = '';
+            promptInput.style.height = '56px';
+
+            // 2. Render Loading State
+            const chatWin = document.getElementById('chat-window');
+            const tempId = 'loading-' + Date.now();
+            chatWin.insertAdjacentHTML('beforeend', `
+                <div id="${tempId}" class="flex items-start space-x-4 max-w-4xl mx-auto w-full">
+                    <div class="w-8 h-8 rounded flex-shrink-0 bg-rose-500 flex items-center justify-center border border-rose-400 mt-1">
+                        <span class="text-white text-xs font-mono font-bold">AI</span>
+                    </div>
+                    <div class="flex-1 pt-2">
+                        <span class="text-sm text-rose-400 font-mono animate-pulse">Processing via ${selectedModel}...</span>
+                    </div>
+                </div>
+            `);
+            chatWin.scrollTop = chatWin.scrollHeight;
+
+            try {
+                // 3. Call Ollama
+                const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: selectedModel, messages: conversationHistory, stream: false })
+                });
+
+                if (!response.ok) throw new Error('API Request Failed');
+                
+                const data = await response.json();
+                const aiReply = data.message.content;
+
+                // 4. Remove Loading state & Render Final Answer
+                document.getElementById(tempId).remove();
+                
+                conversationHistory.push({ role: 'assistant', content: aiReply });
+                saveToLocal();
+                appendAIBubble(aiReply, conversationHistory.length - 1);
+
+            } catch (err) {
+                document.getElementById(tempId).innerHTML = `
+                    <div class="text-rose-500 font-mono text-sm bg-rose-500/10 border border-rose-500/30 p-3 rounded">
+                        CONNECTION ERROR: Could not reach Ollama engine. Verify that the Ollama app is running on your taskbar.
+                    </div>`;
+            }
+        }
+
+        function copyToClipboard(index) {
+            const textToCopy = conversationHistory[index].content;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("Response copied to clipboard!");
+            });
+        }
+
+        function playTTS(index) {
+            if (synth.speaking) { synth.cancel(); return; } 
+            const rawText = conversationHistory[index].content.replace(/[*#_`]/g, ''); 
+            const utterance = new SpeechSynthesisUtterance(rawText);
+            utterance.voice = getFemaleVoice();
+            utterance.rate = 1.0;
+            synth.speak(utterance);
+        }
+
+        function exportChat() {
+            if(conversationHistory.length === 0) { alert("Chat is empty."); return; }
+            let text = "GemOS Workspace | Chat Export\n===============================\n\n";
+            conversationHistory.forEach(m => {
+                const role = m.role === 'user' ? 'PAUL SERGENT (USER)' : 'GEMOS (AI)';
+                text += `${role}:\n${m.content}\n\n-------------------------------\n\n`;
+            });
+            const blob = new Blob([text], {type: "text/plain"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `GemOS_Chat_${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearChat() {
+            if(confirm("Are you sure you want to wipe this session?")) {
+                conversationHistory = [];
+                saveToLocal();
+                document.getElementById('chat-window').innerHTML = `
+                    <div class="flex items-start space-x-4 max-w-4xl mx-auto w-full">
+                        <div class="w-8 h-8 rounded flex-shrink-0 bg-rose-500 flex items-center justify-center border border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)] mt-1">
+                            <span class="text-white text-xs font-mono font-bold">AI</span>
+                        </div>
+                        <div class="flex-1 space-y-2 pt-1.5">
+                            <div class="text-sm text-slate-300 leading-relaxed">
+                                Session wiped. Local context cleared.
+                            </div>
+                        </div>
+                    </div>`;
+                if (synth) synth.cancel();
+            }
+        }
+
+        function saveToLocal() { localStorage.setItem('gemos_chat_history', JSON.stringify(conversationHistory)); }
+        
+        function loadFromLocal() {
+            const saved = localStorage.getItem('gemos_chat_history');
+            document.getElementById('chat-window').innerHTML = '';
+            
+            if (saved) {
+                try { 
+                    conversationHistory = JSON.parse(saved); 
+                    if(conversationHistory.length > 0) {
+                        conversationHistory.forEach((msg, i) => {
+                            if (msg.role === 'user') appendUserBubble(msg.content);
+                            else if (msg.role === 'assistant') appendAIBubble(msg.content, i);
+                        });
+                        return;
+                    }
+                } catch (e) { conversationHistory = []; }
+            }
+            // Default welcome message
+            document.getElementById('chat-window').innerHTML = `
+                <div class="flex items-start space-x-4 max-w-4xl mx-auto w-full">
+                    <div class="w-8 h-8 rounded flex-shrink-0 bg-rose-500 flex items-center justify-center border border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)] mt-1">
+                        <span class="text-white text-xs font-mono font-bold">AI</span>
+                    </div>
+                    <div class="flex-1 space-y-2 pt-1.5">
+                        <div class="text-sm text-slate-300 leading-relaxed">
+                            GemOS local neural interface initialized. Select a model above and type your prompt to begin.
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        loadModels();
+        loadFromLocal();
+    </script>
+</body>
+</html>
